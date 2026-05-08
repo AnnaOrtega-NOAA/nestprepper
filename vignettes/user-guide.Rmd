@@ -1,0 +1,74 @@
+---
+title: "Getting Started with nestprepper"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with nestprepper}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Introduction
+The `nestprepper` package is designed to take messy sea turtle nesting counts and transform them into a standardized Bayesian trend analysis.
+
+## Step 1: Preparing Your Own Data
+To use your own data, ensure your CSV file has at least these three columns:
+1. **Year**: The nesting season (e.g., 2020)
+2. **Site**: The name of the beach (e.g., "Maehama")
+3. **Count**: The number of nests recorded.
+
+If your data is currently "Wide" (each beach has its own column), you should pivot it first:
+
+```{r setup, eval=FALSE}
+library(nestprepper)
+library(tidyr)
+library(dplyr)
+
+# Example of pivoting wide data to the format nestprepper needs:
+# raw_data <- read.csv("your_data.csv") %>%
+#   pivot_longer(cols = -Year, names_to = "Site", values_to = "Count")
+```
+
+## Step 2: The QAQC Gatekeeper
+Before running the model, use `prep_nesting_data()`. This function will interactively ask you about monitoring effort and flag any extreme outliers (like typos) that might crash a Bayesian model.
+
+```{r qaqc, eval=FALSE}
+# This will trigger interactive questions in your console
+clean_data <- prep_nesting_data(your_data_object)
+```
+
+
+
+## Step 3: Biological Conversion
+Convert those raw nest counts into **Annual Nesters** and **Total Adult Females** using species-specific parameters.
+
+```{r abundance, eval=FALSE}
+# You can provide these values directly or answer the prompts
+abundance <- calculate_abundance(
+  clean_data, 
+  clutch_freq = 5.5, 
+  remig_int = 3.2
+)
+```
+
+## Step 4: Trend Modeling & Visualization
+Finally, run the Bayesian State-Space model. This will estimate the hidden population state while accounting for observation error.
+
+```{r modeling, eval=FALSE}
+# Run the model (use parallel = TRUE for faster results on large datasets)
+results <- run_turtle_model(abundance, iter = 10000, parallel = FALSE)
+
+# Generate the "Ghost Plot"
+plot_turtle_status(results, abundance, species_name = "Leatherback")
+```
+
+
+
+## Conclusion
+Once the plot is generated, check the **Annual Trend (U)** in the subtitle. A negative value indicates a population decline, while a positive value indicates growth.
