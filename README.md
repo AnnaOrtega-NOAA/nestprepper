@@ -1,20 +1,16 @@
-# nestprepper <img src="man/figures/logo.png" align="right" height="139" />
-
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html)
-The goal of `nestprepper` is to streamline the transition from messy, real-world sea turtle nesting counts to robust biological abundance estimates and Bayesian trend analyses. This package is developed to support NOAA Open Science initiatives by providing a transparent, reproducible pipeline for population status assessments.
+
+The goal of `nestprepper` is to streamline the transition from messy, real-world sea turtle nesting counts to robust biological abundance estimates and Bayesian trend analyses. This package supports NOAA Open Science initiatives by providing a transparent, reproducible pipeline for population status assessments.
+
+## Key Features
+
+* **Smart Mapping**: Automatically handles both "Wide" format (multiple beach columns) and "Long" format (single count column) data.
+* **Built-in QAQC**: Interactively flags biological spikes (outliers) and handles missing monitoring years.
+* **Bayesian Engine**: Fits State-Space models to estimate population trends ($U$) and process variance ($Q$).
+* **Visual Status**: Generates "Ghost Plots" that communicate population status and uncertainty in a way that is accessible to managers.
 
 ## NOAA Disclaimer
-This repository is a software product and is not official communication of the National Oceanic and Atmospheric Administration (NOAA), or the United States Department of Commerce. All NOAA GitHub project code is provided "as is" and the user assumes the entire risk as to its quality and performance.
-
-## Overview
-`nestprepper` provides a structured workflow to:
-1.  **QAQC**: Interactively flag outliers and handle missing monitoring years.
-2.  **Biological Conversion**: Transform nest counts into Annual Nesters and Total Adult Females.
-3.  **Bayesian Modeling**: Fit State-Space models to estimate population trends ($U$) and process variance ($Q$).
-4.  **Visualization**: Generate "Ghost Plots" that communicate population status and uncertainty.
-
-## Data Management & Privacy
-To comply with sensitive species data protections, this package does not contain raw GPS or nesting data for specific DPS (Distinct Population Segments). Users should load their own data locally. Simulated data for testing is provided via `simulate_turtle_data()`.
+This repository is a software product and is not official communication of the National Oceanic and Atmospheric Administration (NOAA), or the United States Department of Commerce. All NOAA GitHub project code is provided "as is" and the user assumes the entire risk as to its quality and performance. Any reference to specific commercial products, processes, or services by service mark, trademark, manufacturer, or otherwise, does not constitute or imply their endorsement, recommendation, or favoring by the Department of Commerce.
 
 ## Installation
 You can install the development version of `nestprepper` from GitHub with:
@@ -24,18 +20,24 @@ You can install the development version of `nestprepper` from GitHub with:
 devtools::install_github("AnnaOrtega-NOAA/nestprepper")
 ```
 
-## Quick Start
-This is a basic example showing how to run a full analysis pipeline:
+## Quick Start (Shiny Dashboard)
+For most users, the easiest way to use the package is through the built-in interactive dashboard:
+
+```r
+library(nestprepper)
+launch_app()
+```
+
+## Command Line Workflow
+For users looking to integrate `nestprepper` into a scripted pipeline:
 
 ```r
 library(nestprepper)
 
 # 1. Prepare/Clean your data
-# This triggers interactive QAQC prompts
 clean_data <- prep_nesting_data(my_raw_data)
 
 # 2. Convert Nests to Females
-# Based on clutch frequency and remigration intervals
 abundance <- calculate_abundance(clean_data, clutch_freq = 5.5, remig_int = 3.0)
 
 # 3. Model Trends (Bayesian State-Space)
@@ -45,13 +47,27 @@ results <- run_turtle_model(abundance, iter = 10000, parallel = FALSE)
 plot_turtle_status(results, abundance, species_name = "Leatherback")
 ```
 
-## Documentation
-For a detailed walkthrough on using your own data and interpreting the mathematical outputs, please see the online tutorial:
-`vignette("user-guide", package = "nestprepper")`
+## Understanding the Output
 
-## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+| Technical Term | Plain English Translation |
+| :--- | :--- |
+| **Annual Nesters** | The estimated number of individual females that nested this season. |
+| **95% Confidence Range** | The "Window of Truth." We are 95% certain the real population size falls within this area. |
+| **Growth Rate (%)** | The population "Speedometer." A positive percentage suggests recovery. |
+| **Model Precision (MCMC)** | The number of internal "checks" the model runs to ensure the population estimate is stable and reliable. |
 
-## Citation
+## Citations
 If you use `nestprepper` for a DPS assessment or publication, please cite:
-Ortega, A. (2026). nestprepper: An R package for sea turtle nesting data integration and trend modeling.
+
+> Ortega, A. (2026). nestprepper: An R package for sea turtle nesting data integration and trend modeling. Available at: https://github.com/AnnaOrtega-NOAA/nestprepper
+
+The underlying Bayesian state-space methodology for this package is based on:
+> Martin, S. L., et al. (2015). A Bayesian state-space model for loggerhead sea turtle nest-count data. *Scientific Reports*, 5(1), 1-13.
+
+> Martin, S. L., et al. (2020). Status Review of the North Pacific Loggerhead Turtle (*Caretta caretta*) Under the Endangered Species Act. NOAA Technical Memorandum NMFS-PIFSC-105.
+
+## Contributing
+We welcome contributions! To ensure scientific integrity, major changes to the modeling logic may undergo internal peer review by internal NOAA staff before being merged. Please open an Issue to discuss proposed changes.
+
+## 📄 License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
