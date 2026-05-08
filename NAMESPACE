@@ -2,8 +2,11 @@
 
 export("%>%")
 export(calculate_abundance)
+export(launch_app)
 export(plot_turtle_status)
 export(prep_nesting_data)
+export(run_nestprepper_workflow)
 export(run_turtle_model)
 export(simulate_turtle_data)
 importFrom(magrittr,"%>%")
+importFrom(shiny,runApp)

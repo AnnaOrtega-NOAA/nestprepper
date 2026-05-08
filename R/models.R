@@ -11,11 +11,18 @@ run_turtle_model <- function(df, iter = 1000, parallel = FALSE) {
 
   cat("\n--- Initializing Bayesian Trend Model ---\n")
 
-  # Prepare Data
-  wide_data <- df %>%
+  # Ensure data is uniquely identified by summing any duplicates
+    prepared_df <- df %>%
+    dplyr::group_by(Year, Site) %>%
+    dplyr::summarise(Annual_Nesters = sum(Annual_Nesters, na.rm = TRUE), .groups = "drop")
+
+  # Now pivot wider safely
+  wide_data <- prepared_df %>%
     dplyr::select(Year, Site, Annual_Nesters) %>%
     tidyr::pivot_wider(names_from = Site, values_from = Annual_Nesters)
+  # --- FIX ENDS HERE ---
 
+  # The rest of your code remains the same...
   log_mat <- log(as.matrix(wide_data[,-1]))
   log_mat[is.infinite(log_mat) | is.nan(log_mat)] <- NA
 

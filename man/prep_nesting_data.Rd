@@ -4,10 +4,12 @@
 \alias{prep_nesting_data}
 \title{QAQC and Prep Nesting Data}
 \usage{
-prep_nesting_data(df)
+prep_nesting_data(df, quiet = FALSE)
 }
 \arguments{
 \item{df}{A dataframe with Year, Site, and Count columns}
+
+\item{quiet}{Logical. If TRUE, skips interactive console prompts.}
 }
 \description{
 QAQC and Prep Nesting Data

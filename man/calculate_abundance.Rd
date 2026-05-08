@@ -4,7 +4,7 @@
 \alias{calculate_abundance}
 \title{Convert Nest Counts to Abundance}
 \usage{
-calculate_abundance(df, clutch_freq = NULL, remig_int = NULL)
+calculate_abundance(df, clutch_freq = NULL, remig_int = NULL, quiet = FALSE)
 }
 \arguments{
 \item{df}{Cleaned dataframe from prep_nesting_data}
@@ -12,6 +12,8 @@ calculate_abundance(df, clutch_freq = NULL, remig_int = NULL)
 \item{clutch_freq}{Average nests per female per season}
 
 \item{remig_int}{Average years between nesting seasons}
+
+\item{quiet}{Logical. If TRUE, skips interactive console prompts.}
 }
 \description{
 Convert Nest Counts to Abundance
