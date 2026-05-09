@@ -1,5 +1,5 @@
 #' Convert Nest Counts to Abundance
-#' @param df Cleaned dataframe from prep_nesting_data
+#' @param df Cleaned dataframe from prep_nesting_data (Year, Site, Count)
 #' @param clutch_freq Average nests per female per season
 #' @param remig_int Average years between nesting seasons
 #' @param quiet Logical. If TRUE, skips interactive console prompts.
@@ -21,7 +21,7 @@ calculate_abundance <- function(df, clutch_freq = NULL, remig_int = NULL, quiet 
   res <- df %>%
     dplyr::mutate(
       Annual_Nesters = Count / clutch_freq,
-      Total_Adult_Females = (Count / clutch_freq) * remig_int
+      Total_Adult_Females = Annual_Nesters * remig_int
     )
 
   if(!quiet) message("Success: Abundance metrics calculated.")

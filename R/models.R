@@ -1,52 +1,51 @@
-#' Run Bayesian Trend Analysis
-#' @param df Dataframe from calculate_abundance
-#' @param iter Number of MCMC iterations
-#' @param parallel Logical. Run on multiple cores?
+#' Run Bayesian Trend Analysis (Stabilized for Imputation)
 #' @export
-run_turtle_model <- function(df, iter = 1000, parallel = FALSE) {
+run_turtle_model <- function(df, iter = 100000, parallel = FALSE) {
 
-  if (!requireNamespace("jagsUI", quietly = TRUE)) {
-    stop("Package 'jagsUI' is needed. Please install it.")
-  }
+  # 1. Ensure the grid is full for imputation
+  all_years <- min(df$Year):max(df$Year)
+  all_sites <- unique(df$Site)
+  full_grid <- expand.grid(Year = all_years, Site = all_sites)
 
-  cat("\n--- Initializing Bayesian Trend Model ---\n")
-
-  # Ensure data is uniquely identified by summing any duplicates
-    prepared_df <- df %>%
+  prepared_df <- full_grid %>%
+    dplyr::left_join(df, by = c("Year", "Site")) %>%
     dplyr::group_by(Year, Site) %>%
-    dplyr::summarise(Annual_Nesters = sum(Annual_Nesters, na.rm = TRUE), .groups = "drop")
+    dplyr::summarise(Annual_Nesters = sum(Annual_Nesters, na.rm = FALSE), .groups = "drop")
 
-  # Now pivot wider safely
   wide_data <- prepared_df %>%
-    dplyr::select(Year, Site, Annual_Nesters) %>%
     tidyr::pivot_wider(names_from = Site, values_from = Annual_Nesters)
-  # --- FIX ENDS HERE ---
 
-  # The rest of your code remains the same...
-  log_mat <- log(as.matrix(wide_data[,-1]))
-  log_mat[is.infinite(log_mat) | is.nan(log_mat)] <- NA
+  # 2. Matrix Prep with Log-Offset (Prevents Invalid Parent Values)
+  Y <- t(log(as.matrix(wide_data[,-1]) + 0.01))
+  Y[is.na(Y)] <- NA # Restore NAs where data is actually missing
 
-  jags_data <- list(
-    y = t(log_mat),
-    n_yrs = nrow(wide_data),
-    n_sites = ncol(log_mat),
-    u_mean = 0, u_sd = 0.5,
-    q_alpha = 0.01, q_beta = 0.01
-  )
+  n_yrs <- ncol(Y)
+  n_timeseries <- nrow(Y)
 
+  jags_data <- list(Y = Y, n.yrs = n_yrs, n.timeseries = n_timeseries)
+
+  # 3. Stabilized Model String (Mirroring 2026 methodology)
   model_string <- "
   model {
-    U ~ dnorm(u_mean, 1/(u_sd^2))
-    Q_inv ~ dgamma(q_alpha, q_beta)
-    Q <- 1/Q_inv
-    X[1] ~ dnorm(0, 0.01)
-    for(t in 2:n_yrs) {
-      X[t] ~ dnorm(X[t-1] + U, Q_inv)
+    # Slightly broader prior to help convergence during burn-in
+    U ~ dnorm(0, 10)
+
+    # Process Variance (Q) - Changed to a more stable Gamma prior
+    tauQ ~ dgamma(0.1, 0.1)
+    Q <- 1/tauQ
+
+    # State Process
+    X[1] ~ dnorm(0, 0.001)
+    for(t in 2:n.yrs) {
+      X[t] ~ dnorm(X[t-1] + U, tauQ)
     }
-    for(i in 1:n_sites) {
-      A[i] ~ dnorm(0, 0.01)
-      for(t in 1:n_yrs) {
-        y[i,t] ~ dnorm(X[t] + A[i], 100)
+
+    # Observation Process (A offsets)
+    for(i in 1:n.timeseries) {
+      A[i] ~ dnorm(0, 0.001)
+      for(t in 1:n.yrs) {
+        # Fixed precision 100 matches your singleUQ.txt standard
+        Y[i,t] ~ dnorm(X[t] + A[i], 100)
       }
     }
   }"
@@ -54,15 +53,11 @@ run_turtle_model <- function(df, iter = 1000, parallel = FALSE) {
   mod_file <- tempfile(fileext = ".txt")
   writeLines(model_string, mod_file)
 
-  # Explicitly using parallel = FALSE for the first test
   fit <- jagsUI::jags(
     data = jags_data,
     parameters.to.save = c("U", "Q", "X", "A"),
     model.file = mod_file,
-    n.chains = 3,
-    n.iter = iter,
-    n.burnin = floor(iter/2),
-    parallel = parallel
+    n.chains = 3, n.iter = iter, n.burnin = floor(iter/2), n.thin = 50, parallel = parallel
   )
 
   unlink(mod_file)

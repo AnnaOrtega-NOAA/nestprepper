@@ -11,7 +11,6 @@
 run_nestprepper_workflow <- function(df, clutch_freq = 5.5, remig_int = 3.0, iter = 2000, quiet = TRUE) {
 
   # 1. QAQC and Cleaning
-  # We pass 'quiet' through so the Shiny app doesn't freeze
   df_clean <- prep_nesting_data(df, quiet = quiet)
 
   # 2. Abundance Calculation
@@ -25,7 +24,6 @@ run_nestprepper_workflow <- function(df, clutch_freq = 5.5, remig_int = 3.0, ite
   # 3. Bayesian Model Execution
   model_results <- run_turtle_model(df_abund, iter = iter)
 
-  # Return both for plotting purposes
   return(list(
     res = model_results,
     abund = df_abund

@@ -1,40 +1,40 @@
-#' Plot Population Trends and Status
-#' @param model_output Result from run_turtle_model
-#' @param abundance_df Result from calculate_abundance
-#' @param species_name String for plot title
+#' Plot Turtle Population Status (Visualizing Imputed Trend)
 #' @export
-plot_turtle_status <- function(model_output, abundance_df, species_name = "Sea Turtle") {
+plot_turtle_status <- function(res, abund, title = "Population Trend") {
+  fit <- res$fit
+  years <- res$years
+  nsims <- length(fit$sims.list$U)
 
-  fit <- model_output$fit
-  years <- model_output$years
+  # Calculate Total Population from Posterior (Imputation happens here)
+  # We sum across all sites using Site Offsets (A) and State (X)
+  n_sites <- if(is.matrix(fit$sims.list$A)) ncol(fit$sims.list$A) else 1
+  total_abundance_samples <- matrix(0, nrow = nsims, ncol = length(years))
 
-  # Convert log-state back to natural scale
-  est_log <- fit$summary[grep("X", rownames(fit$summary)), ]
-  est_nat <- exp(est_log[, c("2.5%", "50%", "97.5%")])
+  for(t in 1:length(years)) {
+    yearly_sum <- rep(0, nsims)
+    for(i in 1:n_sites) {
+      current_A <- if(n_sites == 1) fit$sims.list$A else fit$sims.list$A[, i]
+      yearly_sum <- yearly_sum + exp(fit$sims.list$X[, t] + current_A)
+    }
+    total_abundance_samples[, t] <- yearly_sum
+  }
 
-  plot_data <- data.frame(
+  est_nat <- apply(total_abundance_samples, 2, quantile, probs = c(0.025, 0.5, 0.975))
+
+  plot_df <- data.frame(
     Year = years,
-    Lower = est_nat[, 1],
-    Median = est_nat[, 2],
-    Upper = est_nat[, 3]
+    Estimate = est_nat["50%", ],
+    Low = est_nat["2.5%", ],
+    High = est_nat["97.5%", ]
   )
 
+  # Final Plot: Continuous Ribbon + Line (The Imputation) vs Points (Observations)
   library(ggplot2)
-
-  p <- ggplot() +
-    geom_ribbon(data = plot_data, aes(x = Year, ymin = Lower, ymax = Upper),
-                fill = "grey80", alpha = 0.5) +
-    # Changed 'size' to 'linewidth' for modern ggplot2
-    geom_line(data = plot_data, aes(x = Year, y = Median),
-              color = "darkblue", linewidth = 1.2) +
-    geom_point(data = abundance_df, aes(x = Year, y = Annual_Nesters, color = Site),
-               alpha = 0.6, size = 2) +
-    labs(title = paste(species_name, "DPS Status & Trend"),
-         subtitle = paste0("Annual Trend (U): ", round(fit$mean$U, 3)),
-         y = "Annual Nesters (Estimated)",
-         x = "Season") +
-    theme_minimal() +
-    scale_color_viridis_d()
-
-  return(p)
+  ggplot() +
+    geom_ribbon(data = plot_df, aes(x = Year, ymin = Low, ymax = High), fill = "grey80", alpha = 0.5) +
+    geom_line(data = plot_df, aes(x = Year, y = Estimate), color = "darkblue", linewidth = 1.2) +
+    geom_point(data = abund, aes(x = Year, y = Annual_Nesters, color = Site), alpha = 0.6) +
+    labs(title = title, subtitle = "The blue line and gray band include imputed values for missing data years.",
+         y = "Annual Nesters", x = "Year") +
+    theme_minimal()
 }

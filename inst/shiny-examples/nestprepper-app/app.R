@@ -4,7 +4,6 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(shinythemes)
-library(zoo)
 library(shinyBS)
 
 ui <- fluidPage(
@@ -14,29 +13,24 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       h4("1. Data Entry"),
-      fileInput("file1", "Upload Nesting CSV", accept = ".csv"),
+      # Allows uploading JM.csv and W.csv simultaneously
+      fileInput("file1", "Upload Nesting CSV(s)", accept = ".csv", multiple = TRUE),
+
       uiOutput("mapper_ui"),
-
+      uiOutput("year_filter_ui"),
       hr(),
-      h4("3. Biological Parameters"),
 
-      # Attach directly to 'clutch_freq'
+      h4("2. Biological Parameters"),
       numericInput("clutch_freq", "Clutch Frequency:", 5.5, min = 1, max = 15, step = 0.1),
-      bsTooltip("clutch_freq", "Average number of nests one female turtle lays in a single season.",
-                "right", options = list(container = "body")),
+      bsTooltip("clutch_freq", "Average nests laid per female per season.", "right"),
 
-      # Attach directly to 'remig_int'
       numericInput("remig_int", "Remigration Interval:", 3.0, min = 1, max = 10, step = 0.1),
-      bsTooltip("remig_int", "Average number of years a female turtle takes between nesting seasons.",
-                "right", options = list(container = "body")),
+      bsTooltip("remig_int", "Average years between nesting seasons.", "right"),
 
       hr(),
-      h4("4. Model Settings"),
-
-      # Attach directly to 'iterations'
-      sliderInput("iterations", "Model Precision (MCMC):", 500, 20000, 2000, step = 500),
-      bsTooltip("iterations", "Higher values lead to more stable results but take longer to run.",
-                "right", options = list(container = "body")),
+      h4("3. Model Settings"),
+      sliderInput("iterations", "Model Precision (MCMC):",
+                  min = 5000, max = 150000, value = 100000, step = 5000),
 
       actionButton("run_model", "Run Bayesian Model",
                    class = "btn-success", style="width: 100%; font-weight: bold; height: 50px;")
@@ -46,9 +40,7 @@ ui <- fluidPage(
       tabsetPanel(
         tabPanel("Mapping & Preview",
                  br(),
-                 uiOutput("outlier_alert"),
-                 tableOutput("outlier_table"),
-                 hr(),
+                 # Shows the raw stacked data before modeling
                  tableOutput("preview")),
 
         tabPanel("Results & Interpretation",
@@ -60,11 +52,12 @@ ui <- fluidPage(
                  wellPanel(
                    h4("Understanding Your Results:"),
                    tags$ul(
-                     tags$li(strong("The Estimate:"), "Our best guess for the population size based on the data provided."),
-                     tags$li(strong("Confidence Range:"), "The window where the true population likely falls."),
-                     tags$li(strong("Trend Line:"), "Upward means recovery; downward means decline.")
+                     tags$li(strong("Combined Trend:"), "If multiple files were uploaded, the blue line represents the total regional population."),
+                     tags$li(strong("Monthly Handling:"), "If monthly columns were selected, data was aggregated into annual totals using state-space imputation."),
+                     tags$li(strong("Precision:"), "Gray bands show 95% Credible Intervals (The 'Window of Truth').")
                    )
-                 ))
+                 )
+        )
       )
     )
   )
@@ -72,137 +65,118 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
 
-  # --- 1. DATA LOADING ---
+  # --- MULTI-FILE LOADING ---
   raw_df <- reactive({
     req(input$file1)
-    read.csv(input$file1$datapath, stringsAsFactors = FALSE)
+    # Stacks all uploaded CSVs into one dataframe
+    lapply(input$file1$datapath, read.csv, stringsAsFactors = FALSE) %>%
+      dplyr::bind_rows()
   })
 
-  # --- 2. DYNAMIC MAPPING ---
+  # --- DYNAMIC MAPPING ---
   output$mapper_ui <- renderUI({
     cols <- names(raw_df())
     tagList(
-      h4("2. Map Your Columns"),
-      selectInput("year_col", "Year Column:", choices = c("", cols)),
-      selectizeInput("count_cols", "Count Column(s):",
-                     choices = cols, multiple = TRUE,
-                     options = list(placeholder = 'Select one or more columns'))
+      selectInput("year_col", "Year Column (e.g. Season):", choices = c("", cols)),
+
+      # Detects if a 'Month' column exists to trigger aggregation logic
+      if(any(grepl("month", cols, ignore.case = TRUE))) {
+        selectInput("month_col", "Month Column (found monthly data):",
+                    choices = c("", cols))
+      },
+
+      selectizeInput("count_cols", "Count Column(s):", choices = cols, multiple = TRUE)
     )
   })
 
-  # --- 3. AUTO-DATA PROCESSING ---
+  output$year_filter_ui <- renderUI({
+    req(raw_df(), input$year_col)
+    yrs <- sort(unique(as.numeric(raw_df()[[input$year_col]])))
+    sliderInput("selected_years", "Analysis Year Range:",
+                min = min(yrs, na.rm=T), max = max(yrs, na.rm=T),
+                value = c(min(yrs, na.rm=T), max(yrs, na.rm=T)), sep = "")
+  })
+
+  # --- DATA STANDARDIZATION & AGGREGATION ---
   mapped_data <- reactive({
     req(input$year_col, input$count_cols)
 
-    # 1. Start with the raw data and rename the Year
+    # 1. Pivot to long format
     df <- raw_df() %>%
       dplyr::rename(Year = !!input$year_col)
 
-    # 2. Identify if we have multiple count columns
-    selected_counts <- input$count_cols
+    # Map month if selected
+    if(!is.null(input$month_col) && input$month_col != "") {
+      df <- df %>% dplyr::rename(Month = !!input$month_col)
+    }
 
-    # 3. PIVOT: This is the key. It takes all selected columns and stacks them.
-    # If you select Beach A and Beach B, it creates a 'Site' column with those names.
-    df_long <- df %>%
-      tidyr::pivot_longer(
-        cols = dplyr::all_of(selected_counts),
-        names_to = "Site",
-        values_to = "Count"
-      )
+    df <- df %>%
+      tidyr::pivot_longer(cols = dplyr::all_of(input$count_cols),
+                          names_to = "Site", values_to = "Count") %>%
+      dplyr::mutate(Count = as.numeric(Count))
 
-    # 4. Clean up: ensure numbers are numeric and filter NAs in Year
-    df_long %>%
-      dplyr::mutate(Count = as.numeric(Count)) %>%
-      dplyr::select(Year, Site, Count) %>%
-      dplyr::filter(!is.na(Year))
+    # 2. RUN AGGREGATION (Handles monthly -> annual sum)
+    # Ensure nestprepper::aggregate_monthly_to_annual is in your R/data_prep.R
+    df <- aggregate_monthly_to_annual(df)
+
+    return(df)
   })
 
-  # --- 4. QAQC ---
-  outliers <- reactive({
-    req(mapped_data())
-    mapped_data() %>% group_by(Site) %>%
-      filter(Count > (mean(Count, na.rm=TRUE) + 3*sd(Count, na.rm=TRUE)))
+  filtered_data <- reactive({
+    req(mapped_data(), input$selected_years)
+    mapped_data() %>%
+      dplyr::filter(Year >= input$selected_years[1], Year <= input$selected_years[2])
   })
 
-  output$outlier_alert <- renderUI({
-    req(nrow(outliers()) > 0)
-    div(class = "alert alert-warning", icon("triangle-exclamation"),
-        "Biological Spikes Detected: Review high counts below for potential data entry errors.")
-  })
-
-  output$outlier_table <- renderTable({ req(nrow(outliers()) > 0); outliers() })
-
-  # --- 5. EXECUTION ---
   final_results <- reactiveVal(NULL)
 
   observeEvent(input$run_model, {
-    req(mapped_data())
-    if (any(is.na(mapped_data()$Count))) {
-      showModal(modalDialog(
-        title = "Data Gaps Detected",
-        "How should the model handle missing years?",
-        footer = tagList(
-          actionButton("na_zero", "Assume 0 nests", class = "btn-info"),
-          actionButton("na_interp", "Fill Gaps (Interpolate)", class = "btn-info"),
-          modalButton("Cancel")
-        )
-      ))
-    } else { execute_model("none") }
+    req(filtered_data())
+    withProgress(message = 'Modeling...', detail = "Aggregating sites and running MCMC", value = 0.5, {
+
+      # 1. Apply biology (Clutch/Remig)
+      abund <- nestprepper::calculate_abundance(filtered_data(),
+                                                input$clutch_freq,
+                                                input$remig_int,
+                                                quiet = TRUE)
+
+      # 2. Run the JAGS model
+      res <- nestprepper::run_turtle_model(abund,
+                                           iter = input$iterations,
+                                           parallel = FALSE)
+
+      final_results(list(res = res, abund = abund))
+    })
   })
 
-  observeEvent(input$na_zero, { removeModal(); execute_model("zero") })
-  observeEvent(input$na_interp, { removeModal(); execute_model("interpolate") })
+  # --- OUTPUTS ---
+  output$preview <- renderTable({ req(filtered_data()); head(filtered_data(), 20) })
 
-  execute_model <- function(na_handle) {
-    withProgress(message = 'Estimating Population...', value = 0.2, {
-      dat <- mapped_data()
-      if(na_handle == "zero") dat$Count[is.na(dat$Count)] <- 0
-      if(na_handle == "interpolate") {
-        dat <- dat %>% group_by(Site) %>%
-          mutate(Count = round(zoo::na.approx(Count, na.rm = FALSE))) %>% ungroup()
-      }
-
-      results <- nestprepper::run_nestprepper_workflow(
-        df = dat, clutch_freq = input$clutch_freq,
-        remig_int = input$remig_int, iter = input$iterations, quiet = TRUE
-      )
-      final_results(results)
-    })
-  }
-
-  # --- 6. SUMMARY UI ---
   output$summary_stats <- renderUI({
     req(final_results())
-
     fit <- final_results()$res$fit
     years <- final_results()$res$years
 
-    est_log <- fit$summary[grep("X", rownames(fit$summary)), ]
-    est_nat <- exp(est_log[, c("2.5%", "50%", "97.5%")])
+    growth <- round(fit$mean$U * 100, 1)
+    last_idx <- length(years)
 
-    last_idx <- nrow(est_nat)
-    final_year <- years[last_idx]
-    final_est  <- round(est_nat[last_idx, "50%"])
-    low_ci     <- round(est_nat[last_idx, "2.5%"])
-    high_ci    <- round(est_nat[last_idx, "97.5%"])
-    growth     <- round(fit$mean$U * 100, 1)
+    # Calculate Regional Estimate for the final year
+    est_total <- round(sum(exp(fit$mean$X[last_idx] + fit$mean$A)))
 
     wellPanel(
-      style = "background: #ffffff; border-left: 10px solid #27ae60; box-shadow: 0 4px 6px rgba(0,0,0,0.1);",
-      h3(paste("Snapshot for", final_year)),
-      p(style = "font-size: 20px; color: #2c3e50;",
-        "Estimated nesting females: ", strong(final_est)),
-      p("Confidence Range: ", strong(low_ci), " to ", strong(high_ci), "."),
-      p(icon("chart-line"), "Annual growth: ",
-        span(style = ifelse(growth > 0, "color: green;", "color: red;"), strong(growth, "%")))
+      style = "background: #ffffff; border-left: 10px solid #27ae60;",
+      h3("Integrated Population Summary"),
+      h4(paste("Estimated Nesters in", years[last_idx], ":", format(est_total, big.mark=","))),
+      p("Regional Growth Rate (U): ",
+        span(style = ifelse(growth > 0, "color: green;", "color: red;"),
+             strong(growth, "% per year")))
     )
   })
 
-  output$preview <- renderTable({ req(mapped_data()); head(mapped_data(), 10) })
-
   output$ghost_plot <- renderPlot({
     req(final_results())
-    plot_turtle_status(final_results()$res, final_results()$abund, "Population Trend Estimate")
+    nestprepper::plot_turtle_status(res = final_results()$res,
+                                    abund = final_results()$abund)
   })
 }
 

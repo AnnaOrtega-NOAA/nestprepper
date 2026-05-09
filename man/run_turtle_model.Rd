@@ -2,17 +2,10 @@
 % Please edit documentation in R/models.R
 \name{run_turtle_model}
 \alias{run_turtle_model}
-\title{Run Bayesian Trend Analysis}
+\title{Run Bayesian Trend Analysis (Stabilized for Imputation)}
 \usage{
-run_turtle_model(df, iter = 1000, parallel = FALSE)
-}
-\arguments{
-\item{df}{Dataframe from calculate_abundance}
-
-\item{iter}{Number of MCMC iterations}
-
-\item{parallel}{Logical. Run on multiple cores?}
+run_turtle_model(df, iter = 1e+05, parallel = FALSE)
 }
 \description{
-Run Bayesian Trend Analysis
+Run Bayesian Trend Analysis (Stabilized for Imputation)
 }

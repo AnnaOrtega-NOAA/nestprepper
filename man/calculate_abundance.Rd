@@ -7,7 +7,7 @@
 calculate_abundance(df, clutch_freq = NULL, remig_int = NULL, quiet = FALSE)
 }
 \arguments{
-\item{df}{Cleaned dataframe from prep_nesting_data}
+\item{df}{Cleaned dataframe from prep_nesting_data (Year, Site, Count)}
 
 \item{clutch_freq}{Average nests per female per season}
 

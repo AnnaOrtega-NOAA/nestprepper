@@ -2,17 +2,10 @@
 % Please edit documentation in R/plots.R
 \name{plot_turtle_status}
 \alias{plot_turtle_status}
-\title{Plot Population Trends and Status}
+\title{Plot Turtle Population Status (Visualizing Imputed Trend)}
 \usage{
-plot_turtle_status(model_output, abundance_df, species_name = "Sea Turtle")
-}
-\arguments{
-\item{model_output}{Result from run_turtle_model}
-
-\item{abundance_df}{Result from calculate_abundance}
-
-\item{species_name}{String for plot title}
+plot_turtle_status(res, abund, title = "Population Trend")
 }
 \description{
-Plot Population Trends and Status
+Plot Turtle Population Status (Visualizing Imputed Trend)
 }
