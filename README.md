@@ -93,5 +93,5 @@ The underlying Bayesian state-space methodology for this package is based on:
 ## Contributing
 We welcome contributions! To ensure scientific integrity, major changes to the modeling logic may undergo internal peer review by internal NOAA staff before being merged. Please open an Issue to discuss proposed changes.
 
-## 📄 License
+## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
