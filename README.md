@@ -86,7 +86,9 @@ If you use `nestprepper` for a DPS assessment or publication, please cite:
 > Ortega, A. (2026). nestprepper: An R package for sea turtle nesting data integration and trend modeling. Available at: https://github.com/AnnaOrtega-NOAA/nestprepper
 
 The underlying Bayesian state-space methodology for this package is based on:
+
 > Martin SL, Siders Z, Eguchi T, Langseth B, Yau A, Baker J, Ahrens R, Jones TT. 2020. Assessing the population-level impacts of North Pacific loggerhead and western Pacific leatherback turtle interactions in the Hawaii-based shallow-set longline fishery. U.S. Dept. of Commerce, NOAA Technical Memorandum NOAA-TM-NMFS-PIFSC-95, 183 p.doi:10.25923/ydp1-f891
+
 > Martin SL, Siders Z, Eguchi T, Langseth B, Yau A, Baker J, Ahrens R, Jones TT. 2020. Update to assessing the population-level impacts of North Pacific loggerhead and western Pacific leatherback turtle interactions: inclusion of the Hawaii-based deep-set and American Samoa-based longline fisheries. U.S. Dept. of Commerce, NOAA Technical Memorandum NOAA-TM-NMFS-PIFSC-101, 67 p. doi:10.25923/pnf2-2q77
 
 ## Contributing
