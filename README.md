@@ -9,6 +9,30 @@ The goal of `nestprepper` is to streamline the transition from messy, real-world
 * **Bayesian Engine**: Fits State-Space models to estimate population trends ($U$) and process variance ($Q$).
 * **Visual Status**: Generates "Ghost Plots" that communicate population status and uncertainty in a way that is accessible to managers.
 
+## Data Input Requirements
+
+`nestprepper` is designed for high-level population assessments. To ensure the accuracy of Bayesian trend estimates, the package currently requires **Annual Nest Counts**. 
+
+### **Standardized Data Structure**
+For the most reliable results, your input CSV should follow a "one-row-per-year" structure. The app is optimized to recognize:
+
+* **Year Mapping**: Automatically identifies columns named `Year`, `Season`, or `Year_begin`.
+* **Count Mapping**: Users can select the specific column containing total annual nest counts (e.g., `JM_Nests` or `Nests`).
+* **Site Identification**: Supports data with multiple sites/beaches by allowing the user to select the relevant site-specific count column, or multiple sites/beaches/columns.
+
+### **Current Constraints**
+* **Annual Totals Only**: The app is currently optimized for aggregated annual totals. 
+* **Structure**: If your data is in a monthly format, it must be aggregated into annual sums before being uploaded into the `nestprepper` pipeline. We are working on another R package to do this!
+* **Missing Values**: The Bayesian engine handles missing monitoring years (NAs), but requires a designated `Year` and `Count` column to build the time series.
+
+```r
+# Ideal structure for nestprepper:
+# Year | Nests
+# 2003 | 379
+# 2004 | 124
+# 2005 | NA (Missing monitoring year)
+```
+
 ## NOAA Disclaimer
 This repository is a software product and is not official communication of the National Oceanic and Atmospheric Administration (NOAA), or the United States Department of Commerce. All NOAA GitHub project code is provided "as is" and the user assumes the entire risk as to its quality and performance. Any reference to specific commercial products, processes, or services by service mark, trademark, manufacturer, or otherwise, does not constitute or imply their endorsement, recommendation, or favoring by the Department of Commerce.
 
@@ -62,12 +86,13 @@ If you use `nestprepper` for a DPS assessment or publication, please cite:
 > Ortega, A. (2026). nestprepper: An R package for sea turtle nesting data integration and trend modeling. Available at: https://github.com/AnnaOrtega-NOAA/nestprepper
 
 The underlying Bayesian state-space methodology for this package is based on:
-> Martin, S. L., et al. (2015). A Bayesian state-space model for loggerhead sea turtle nest-count data. *Scientific Reports*, 5(1), 1-13.
 
-> Martin, S. L., et al. (2020). Status Review of the North Pacific Loggerhead Turtle (*Caretta caretta*) Under the Endangered Species Act. NOAA Technical Memorandum NMFS-PIFSC-105.
+> Martin SL, Siders Z, Eguchi T, Langseth B, Yau A, Baker J, Ahrens R, Jones TT. 2020. Assessing the population-level impacts of North Pacific loggerhead and western Pacific leatherback turtle interactions in the Hawaii-based shallow-set longline fishery. U.S. Dept. of Commerce, NOAA Technical Memorandum NOAA-TM-NMFS-PIFSC-95, 183 p.doi:10.25923/ydp1-f891
+
+> Martin SL, Siders Z, Eguchi T, Langseth B, Yau A, Baker J, Ahrens R, Jones TT. 2020. Update to assessing the population-level impacts of North Pacific loggerhead and western Pacific leatherback turtle interactions: inclusion of the Hawaii-based deep-set and American Samoa-based longline fisheries. U.S. Dept. of Commerce, NOAA Technical Memorandum NOAA-TM-NMFS-PIFSC-101, 67 p. doi:10.25923/pnf2-2q77
 
 ## Contributing
 We welcome contributions! To ensure scientific integrity, major changes to the modeling logic may undergo internal peer review by internal NOAA staff before being merged. Please open an Issue to discuss proposed changes.
 
-## 📄 License
+## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
