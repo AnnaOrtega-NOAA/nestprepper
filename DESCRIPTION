@@ -15,7 +15,8 @@ Imports:
     tidyr,
     magrittr,
     shiny,
-    zoo
+    zoo,
+    MARSS
 Suggests: 
     knitr,
     rmarkdown

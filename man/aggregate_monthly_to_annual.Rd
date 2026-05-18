@@ -2,10 +2,10 @@
 % Please edit documentation in R/data_prep.R
 \name{aggregate_monthly_to_annual}
 \alias{aggregate_monthly_to_annual}
-\title{Aggregate Monthly Data using Original Bayesian Fourier Imputation}
+\title{Aggregate Monthly Data using Exact Tomo Eguchi AR1 Bayesian Fourier Imputation}
 \usage{
 aggregate_monthly_to_annual(df, quiet = FALSE)
 }
 \description{
-Aggregate Monthly Data using Original Bayesian Fourier Imputation
+Aggregate Monthly Data using Exact Tomo Eguchi AR1 Bayesian Fourier Imputation
 }
