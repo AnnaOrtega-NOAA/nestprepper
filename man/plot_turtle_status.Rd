@@ -2,10 +2,10 @@
 % Please edit documentation in R/plots.R
 \name{plot_turtle_status}
 \alias{plot_turtle_status}
-\title{Plot Turtle Population Status (Visualizing Imputed Trend)}
+\title{Plot Turtle Population Status (Exact singleUQ Aesthetics)}
 \usage{
-plot_turtle_status(res, abund, title = "Population Trend")
+plot_turtle_status(res, abund)
 }
 \description{
-Plot Turtle Population Status (Visualizing Imputed Trend)
+Plot Turtle Population Status (Exact singleUQ Aesthetics)
 }

@@ -2,19 +2,17 @@
 % Please edit documentation in R/abundance.R
 \name{calculate_abundance}
 \alias{calculate_abundance}
-\title{Convert Nest Counts to Abundance}
+\title{Convert Nest Counts to Abundance (Nesters & Females)}
 \usage{
-calculate_abundance(df, clutch_freq = NULL, remig_int = NULL, quiet = FALSE)
+calculate_abundance(df, clutch_freq = 5.5, remig_int = 3.06, quiet = FALSE)
 }
 \arguments{
-\item{df}{Cleaned dataframe from prep_nesting_data (Year, Site, Count)}
+\item{df}{Dataframe from prep_nesting_data (Year, Site, Count)}
 
-\item{clutch_freq}{Average nests per female per season}
+\item{clutch_freq}{Nests per female per season}
 
 \item{remig_int}{Average years between nesting seasons}
-
-\item{quiet}{Logical. If TRUE, skips interactive console prompts.}
 }
 \description{
-Convert Nest Counts to Abundance
+Convert Nest Counts to Abundance (Nesters & Females)
 }

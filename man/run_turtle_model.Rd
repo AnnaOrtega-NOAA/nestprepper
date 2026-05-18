@@ -2,10 +2,10 @@
 % Please edit documentation in R/models.R
 \name{run_turtle_model}
 \alias{run_turtle_model}
-\title{Run Bayesian Trend Analysis (Stabilized for Imputation)}
+\title{Run Bayesian Trend Analysis (Exact singleUQ Baseline)}
 \usage{
-run_turtle_model(df, iter = 1e+05, parallel = FALSE)
+run_turtle_model(df, iter = 150000, burnin = 50000, thin = 10)
 }
 \description{
-Run Bayesian Trend Analysis (Stabilized for Imputation)
+Run Bayesian Trend Analysis (Exact singleUQ Baseline)
 }

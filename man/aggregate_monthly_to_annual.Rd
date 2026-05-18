@@ -2,10 +2,10 @@
 % Please edit documentation in R/data_prep.R
 \name{aggregate_monthly_to_annual}
 \alias{aggregate_monthly_to_annual}
-\title{Aggregate Monthly Data to Annual Totals}
+\title{Aggregate Monthly Data using Original Bayesian Fourier Imputation}
 \usage{
-aggregate_monthly_to_annual(df)
+aggregate_monthly_to_annual(df, quiet = FALSE)
 }
 \description{
-Aggregate Monthly Data to Annual Totals
+Aggregate Monthly Data using Original Bayesian Fourier Imputation
 }

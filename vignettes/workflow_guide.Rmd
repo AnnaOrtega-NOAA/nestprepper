@@ -1,0 +1,71 @@
+---
+title: "Nestprepper Workflow Guide"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Nestprepper Workflow Guide}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(DiagrammeR)
+```
+
+## How to use `nestprepper`
+
+### Decision Flowchart
+
+Select a path below to see the required steps.
+
+```{r, echo=FALSE, fig.align='center'}
+# 1. Create the diagram object
+d <- mermaid("
+graph TD
+    Start((Start: I have<br/>Nesting Data)) --> Type{What is your<br/>data format?}
+    
+    Type -- Monthly Counts --> Pute[nestpute package<br/>Impute gaps & aggregate]
+    Type -- Annual Totals --> Prep[nestprepper app<br/>QAQC & Bayesian Trend]
+    
+    Pute --> Prep
+    
+    Prep --> Output{What is your<br/>Goal?}
+    
+    Output -- Abundance --> Result1[Calculate Annual<br/>Nesting Females]
+    Output -- Trend --> Result2[Bayesian State-Space<br/>Growth Rate %]
+    
+    style Start fill:#E1F5FE,stroke:#01579B,stroke-width:2px
+    style Prep fill:#C8E6C9,stroke:#2E7D32,stroke-width:2px
+    style Pute fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px
+    style Result1 fill:#F3E5F5,stroke:#7B1FA2
+    style Result2 fill:#F3E5F5,stroke:#7B1FA2
+")
+
+# 2. Render it as a widget, but use widgetframe or standard output 
+# to isolate it from the text.
+d
+```
+
+---
+
+## Data Paths
+
+### 1. The `nestpute` Path (Under Development)
+If you have raw monthly files (e.g., counts for January, February, March), you will eventually use the [nestpute](https://github.com/AnnaOrtega-NOAA/nestpute) package.
+* **Process:** Impute monitoring gaps and aggregate into annual totals.
+* **Current Status:** In development. Please aggregate data manually for now.
+
+### 2. The `nestprepper` Path (Current)
+If you already have one total count per year, you can proceed directly to the [nestprepper dashboard](https://github.com/AnnaOrtega-NOAA/nestprepper).
+* **Process:** Interactive outlier detection, biological parameter conversion, and MCMC trend modeling.
+* **Output:** Abundance estimates, Trend ($U$), and Ghost Plots for status reports.
+
+---
+
+### NOAA Open Science
+By following this workflow, we ensure that every step from raw data to final trend is documented, reproducible, and standardized across different nesting regions.
+
+> Ortega, A. (2026). nestprepper: An R package for sea turtle nesting data integration and trend modeling.
