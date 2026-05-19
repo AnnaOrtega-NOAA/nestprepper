@@ -9,7 +9,6 @@ ui <- fluidPage(
   theme = bs_theme(version = 5, bootswatch = "minty"),
 
   # --- BOOTSTRAP TOOLTIP INITIALIZER ENGINE ---
-  # Automatically monitors table updates to trigger diagnostic popups instantly on hover
   tags$head(
     tags$script(HTML("
       setInterval(function() {
@@ -32,9 +31,8 @@ ui <- fluidPage(
 
       hr(),
       h4("QA / QC Settings"),
-      radioButtons("missing_rule", "How should un-surveyed years be handled?",
-                   choices = c("Leave as Missing (NA) - Recommended for JAGS" = "na",
-                               "Convert to Zeros (0) - Warning: Can warp log-normal math" = "zero")),
+      p("Empty cells in nesting csv will be treated as NAs.", style = "font-size: 0.9rem; color: #555; margin-bottom: 5px;"),
+      checkboxInput("missing_rule_zero", "Convert empty cells to 0s (Warning: can warp log-normal math)", value = FALSE),
       checkboxInput("check_outliers", "Flag extreme outlier years (>3 SD)?", value = TRUE),
 
       hr(),
@@ -43,18 +41,8 @@ ui <- fluidPage(
       numericInput("remig_int", "Remigration Interval", value = 3.06, step = 0.01),
 
       hr(),
-      # --- HISTORICAL TAKE SECTION ---
-      h4("Historical Take (ANE)"),
-      checkboxInput("use_take", "Add Historical Take to estimate intrinsic growth?", value = FALSE),
-      conditionalPanel(
-        condition = "input.use_take == true",
-        fileInput("file_ane", "Upload historical_ANE.csv", accept = ".csv"),
-        uiOutput("ane_mapper_ui")
-      ),
-
-      hr(),
-      h4("Model Precision"),
-      sliderInput("iterations", "MCMC Iterations", min = 10000, max = 150000, value = 50000, step = 10000),
+      h4("Model Precision (Trend Analysis)"),
+      sliderInput("iterations", "MCMC Iterations", min = 10000, max = 150000, value = 100000, step = 10000),
       br(),
       actionButton("run_model", "Run Comparative Analysis", class = "btn-primary w-100", style = "font-weight: bold;")
     ),
@@ -62,19 +50,33 @@ ui <- fluidPage(
     mainPanel(
       tabsetPanel(
         # =====================================================================
-        # TAB 1: REGIONAL POPULATION PROFILE (MANAGEMENT VIEW)
+        # TAB 1: DATA PREVIEW (REACTIVE VISUALIZATION WORKSPACE)
+        # =====================================================================
+        tabPanel("Data Preview",
+                 br(),
+                 h3("Input Data Visualizer", style = "font-weight: bold;"),
+                 p("Verify your raw nesting dataset before running the comparative engines. Naive totals are deliberately hidden here; accurate annual population profiles are only plotted after mathematical imputation is applied during the model run."),
+                 br(),
+
+                 # Dynamically renders either continuous monthly timeline or raw annual dots
+                 uiOutput("preview_dynamic_plots"),
+
+                 br(),
+                 card(
+                   card_header("Processed Abundance Matrix (Available Post-Run)"),
+                   tableOutput("data_preview_table")
+                 )
+        ),
+
+        # =====================================================================
+        # TAB 2: REGIONAL POPULATION PROFILE (MANAGEMENT VIEW)
         # =====================================================================
         tabPanel("Regional Population Profile",
                  br(),
-                 # Headline Scorecards
                  uiOutput("summary_stats"),
                  br(),
-
-                 # Analytical Executive Summary Card
                  uiOutput("executive_summary"),
                  br(),
-
-                 # Official Clean JAGS Baseline Plot Only
                  card(
                    card_header("Official Population Assessment Trajectory (JAGS singleUQ Baseline)"),
                    plotOutput("clean_baseline_plot", height = "500px")
@@ -82,7 +84,7 @@ ui <- fluidPage(
         ),
 
         # =====================================================================
-        # TAB 2: STRUCTURAL DIAGNOSTICS (SCIENTIFIC SANDBOX)
+        # TAB 3: STRUCTURAL DIAGNOSTICS (SCIENTIFIC SANDBOX)
         # =====================================================================
         tabPanel("Structural Diagnostics",
                  br(),
@@ -90,7 +92,6 @@ ui <- fluidPage(
                  p("This sandbox evaluates whether your data fits the default model rules. Use it to check if your beaches share a synchronized regional trend, or if individual beaches are behaving completely differently in the wild."),
                  br(),
 
-                 # Interactive Layer Selectors
                  card(
                    card_header("Interactive Plot Controls"),
                    checkboxGroupInput("plot_layers", "Select Model Layers to Overlay on Observed Counts:",
@@ -101,7 +102,6 @@ ui <- fluidPage(
                  ),
                  br(),
 
-                 # Dynamic Interactive Overlay Plot
                  card(
                    card_header("Unified Multi-Engine Trajectory Comparison Overlay"),
                    plotOutput("unified_trend_plot", height = "600px")
@@ -109,7 +109,6 @@ ui <- fluidPage(
                  br(),
                  hr(),
 
-                 # --- SECTION 3: TECHNICAL SCORECARDS WITH INSTANT HTML TOOLTIPS ---
                  h4("Technical Model Parameter Scorecards", style = "font-weight: bold; margin-top: 30px;"),
                  fluidRow(
                    column(12, card(
@@ -141,9 +140,48 @@ ui <- fluidPage(
                  )
         ),
 
-        tabPanel("Data Preview",
+        # =====================================================================
+        # TAB 4: POPULATION VIABILITY ANALYSIS (PVA SIMULATION Workspace)
+        # =====================================================================
+        tabPanel("PVA Simulation",
                  br(),
-                 card(tableOutput("data_preview")))
+                 h3("Population Viability Analysis (PVA) Sandbox", style = "font-weight: bold;"),
+                 p("Project localized population trajectories forward using estimated growth targets and environmental parameters to calculate risk benchmarks."),
+                 br(),
+
+                 fluidRow(
+                   column(4,
+                          card(
+                            card_header("Simulation Controls"),
+                            sliderInput("pva_years", "Projection Time Horizon (Years)", min = 10, max = 100, value = 50, step = 10),
+                            numericInput("pva_sims", "Stochastic Iterations", value = 500, min = 100, max = 2500, step = 100),
+                            hr(),
+                            p(tags$b("Biological Note on Horizons:"), style = "font-size: 0.9rem;"),
+                            p("A 50-year horizon aligns with regional management recovery timelines. However, because sea turtle generation lengths are long (often 30+ years), extending the evaluation to 100 years is highly recommended to fully observe long-term demographic lags.", style = "font-size: 0.85rem; color: #555;")
+                          )
+                   ),
+                   column(8,
+                          card(
+                            card_header("Forward Abundance Trajectories"),
+                            plotOutput("pva_plot", height = "400px")
+                          )
+                   )
+                 ),
+                 br(),
+                 card(
+                   card_header(
+                     span("Abundance Threshold Collapse Risk Matrix ",
+                          tags$span(
+                            shiny::icon("info-circle", style = "color: #6c757d; cursor: pointer;"),
+                            `data-bs-toggle` = "tooltip",
+                            `data-bs-placement` = "top",
+                            `data-bs-title` = "RISK BENCHMARKS: This matrix displays the probability that a nesting population will drop below specific percentages of its final estimated baseline value by the end of the simulation horizon."
+                          )
+                     )
+                   ),
+                   tableOutput("table_pva_thresholds")
+                 )
+        )
       )
     )
   )
@@ -158,12 +196,6 @@ server <- function(input, output, session) {
   df_raw <- reactive({
     req(input$file1)
     purrr::map_df(input$file1$datapath, ~read.csv(.x))
-  })
-
-  # 2. ANE Data Upload
-  df_ane <- reactive({
-    req(input$file_ane)
-    read.csv(input$file_ane$datapath)
   })
 
   # 3. Column Mapping UIs
@@ -193,7 +225,134 @@ server <- function(input, output, session) {
                 value = c(min(yrs), max(yrs)), sep = "")
   })
 
-  # 5. Main Execution Logic
+  # =====================================================================
+  # DATA PREVIEW REACTIVE VISUALIZATION LOGIC
+  # =====================================================================
+
+  preview_df <- reactive({
+    req(df_raw(), input$year_col, input$beach_cols)
+    d <- df_raw() %>% rename(Year = !!sym(input$year_col))
+
+    if (!is.null(input$year_range)) {
+      d <- d %>% dplyr::filter(Year >= input$year_range[1] & Year <= input$year_range[2])
+    }
+    if (input$has_months && !is.null(input$month_col) && input$month_col != "") {
+      d <- d %>% rename(Month = !!sym(input$month_col))
+    }
+
+    target_beach_cols <- setdiff(input$beach_cols, input$year_col)
+    req(length(target_beach_cols) > 0)
+
+    d_long <- d %>%
+      dplyr::select(any_of(c("Year", "Month", target_beach_cols))) %>%
+      tidyr::pivot_longer(cols = all_of(target_beach_cols), names_to = "Site", values_to = "Count") %>%
+      dplyr::mutate(Count = as.numeric(Count))
+
+    if (input$missing_rule_zero) {
+      d_long <- d_long %>% tidyr::replace_na(list(Count = 0))
+    }
+    d_long
+  })
+
+  output$preview_dynamic_plots <- renderUI({
+    req(!is.null(input$has_months))
+
+    if (input$has_months) {
+      fluidRow(
+        column(12, card(
+          card_header("Raw Monthly Timeline (All Sites)"),
+          plotOutput("preview_continuous_timeline", height = "350px")
+        )),
+        column(12, card(
+          card_header("Monthly Seasonality Trends"),
+          plotOutput("preview_monthly_nests", height = "600px")
+        ))
+      )
+    } else {
+      fluidRow(
+        column(12, card(
+          card_header("Raw Annual Reports (Unimputed)"),
+          plotOutput("preview_annual_raw", height = "400px")
+        ))
+      )
+    }
+  })
+
+  output$preview_continuous_timeline <- renderPlot({
+    req(preview_df(), input$has_months)
+    d <- preview_df()
+    req("Month" %in% names(d))
+
+    d_cont <- d %>%
+      filter(!is.na(Count)) %>%
+      mutate(
+        Month_Num = suppressWarnings(as.numeric(Month)),
+        Date_Str = sprintf("%04d-%02d-01", as.numeric(Year), Month_Num)
+      ) %>%
+      filter(!is.na(Month_Num)) %>%
+      mutate(Date = as.Date(Date_Str)) %>%
+      arrange(Date)
+
+    ggplot(d_cont, aes(x = Date, y = Count, color = Site)) +
+      geom_line(linewidth = 0.8) +
+      geom_point(size = 1.5) +
+      facet_wrap(~Site, scales = "free_y", ncol = 1) +
+      theme_bw() +
+      labs(x = "Time", y = "Raw Nests / Month") +
+      theme(legend.position = "none", strip.text = element_text(face = "bold", size = 11))
+  })
+
+  output$preview_monthly_nests <- renderPlot({
+    req(preview_df(), input$has_months)
+    d <- preview_df()
+    req("Month" %in% names(d))
+
+    month_order <- c("5", "6", "7", "8", "9", "10", "11", "12", "1", "2", "3", "4")
+    month_names <- c("May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr")
+
+    d_monthly <- d %>%
+      mutate(
+        Month_Num = suppressWarnings(as.numeric(Month)),
+        Year_Factored = as.factor(Year)
+      ) %>%
+      filter(!is.na(Month_Num), !is.na(Count)) %>%
+      mutate(Month_Factored = factor(as.character(Month_Num), levels = month_order)) %>%
+      filter(!is.na(Month_Factored)) %>%
+      arrange(Year, Month_Factored)
+
+    ggplot(d_monthly, aes(x = Month_Factored, y = Count, color = Year_Factored, group = Year_Factored)) +
+      geom_line(linewidth = 1) +
+      geom_point(size = 2) +
+      facet_wrap(~Site, scales = "free_y", ncol = 1) +
+      scale_x_discrete(labels = month_names) +
+      scale_color_viridis_d(option = "magma", direction = -1) +
+      labs(x = "Month", y = "Raw Nests", color = "Year") +
+      theme_bw() +
+      theme(legend.position = "right",
+            strip.text = element_text(face = "bold", size = 12),
+            panel.grid.minor = element_blank())
+  })
+
+  output$preview_annual_raw <- renderPlot({
+    req(preview_df())
+    d <- preview_df()
+    ggplot(d %>% filter(!is.na(Count)), aes(x = Year, y = Count, color = Site)) +
+      geom_line(linewidth = 1) +
+      geom_point(size = 2) +
+      facet_wrap(~Site, scales = "free_y", ncol = 1) +
+      theme_bw() +
+      labs(x = "Year", y = "Raw Nests / Year") +
+      theme(legend.position = "none", strip.text = element_text(face = "bold", size = 11))
+  })
+
+  output$data_preview_table <- renderTable({
+    req(vault$abund)
+    vault$abund
+  })
+
+  # =====================================================================
+  # MAIN EXECUTION LOGIC
+  # =====================================================================
   observeEvent(input$run_model, {
     req(input$year_col, input$beach_cols, input$year_range)
 
@@ -216,46 +375,18 @@ server <- function(input, output, session) {
         tidyr::pivot_longer(cols = all_of(target_beach_cols), names_to = "Site", values_to = "Count") %>%
         dplyr::mutate(Count = as.numeric(Count))
 
-      if (input$missing_rule == "zero") {
+      if (input$missing_rule_zero) {
         d_long <- d_long %>% tidyr::replace_na(list(Count = 0))
       }
 
-      setProgress(0.2, detail = "Aggregating/Imputing Months...")
+      setProgress(0.2, detail = "Running Bayesian Fourier Imputation... (Check R Console for live % progress)")
       d_annual <- aggregate_monthly_to_annual(d_long, quiet = TRUE)
 
-      setProgress(0.3, detail = "Converting to Abundance...")
+      setProgress(0.6, detail = "Converting to Abundance...")
       abund <- calculate_abundance(d_annual, clutch_freq = input$clutch_freq, remig_int = input$remig_int, quiet = TRUE)
-
-      # --- ANE Take Addition ---
-      if (input$use_take) {
-        req(df_ane(), input$ane_year_col, input$ane_val_col)
-        setProgress(0.35, detail = "Adding Historical ANE proportional to site size...")
-
-        ane_data <- df_ane() %>%
-          rename(Year = !!sym(input$ane_year_col), ANE_val = !!sym(input$ane_val_col)) %>%
-          select(Year, ANE_val) %>%
-          group_by(Year) %>% summarise(ANE_val = sum(ANE_val, na.rm=TRUE))
-
-        abund <- abund %>%
-          dplyr::group_by(Year) %>%
-          dplyr::mutate(
-            Total_Nesters_Yr = sum(Annual_Nesters, na.rm = TRUE),
-            Site_Prop = ifelse(Total_Nesters_Yr > 0, Annual_Nesters / Total_Nesters_Yr, 1 / n())
-          ) %>%
-          dplyr::ungroup() %>%
-          dplyr::left_join(ane_data, by = "Year") %>%
-          dplyr::mutate(
-            ANE_val = tidyr::replace_na(ANE_val, 0),
-            Annual_Nesters = Annual_Nesters + (ANE_val * Site_Prop),
-            Total_Adult_Females = Annual_Nesters * input$remig_int
-          ) %>%
-          dplyr::select(-Total_Nesters_Yr, -Site_Prop, -ANE_val)
-      }
-
       vault$abund <- abund
 
-      # --- EXECUTE ENGINE 1: JAGS BASELINE ---
-      setProgress(0.4, detail = paste("Running JAGS (", input$iterations, " iterations)...", sep=""))
+      setProgress(0.7, detail = paste("Running JAGS Trend Engine... (Check R Console for live % progress)", sep=""))
       res <- tryCatch({
         run_turtle_model(
           abund,
@@ -271,7 +402,6 @@ server <- function(input, output, session) {
       req(res)
       vault$res <- res
 
-      # --- EXECUTE ENGINE 2: MARSS ---
       setProgress(0.8, detail = "Running Comparative MARSS Engines...")
       marss_res <- tryCatch({
         run_marss_models(abund)
@@ -295,7 +425,6 @@ server <- function(input, output, session) {
     })
   })
 
-  # 6. Summary Statistics Boxes
   output$summary_stats <- renderUI({
     validate(need(vault$nesters, "Please select columns, set year range, and click 'Run Comparative Analysis'."))
 
@@ -308,7 +437,6 @@ server <- function(input, output, session) {
     )
   })
 
-  # --- SCIENTIFIC EXECUTIVE SYNTHESIS ANALYSIS ---
   output$executive_summary <- renderUI({
     req(vault$res, vault$marss)
 
@@ -344,13 +472,11 @@ server <- function(input, output, session) {
     )
   })
 
-  # --- TAB 1 CLEAN PLOT ENGINE ---
   output$clean_baseline_plot <- renderPlot({
     req(vault$res, vault$abund)
     plot_turtle_status(vault$res, vault$abund)
   })
 
-  # --- TAB 2 INTERACTIVE LAYER OVERLAY PLOT ENGINE ---
   output$unified_trend_plot <- renderPlot({
     req(vault$res, vault$marss, vault$abund, input$plot_layers)
 
@@ -364,7 +490,7 @@ server <- function(input, output, session) {
     if ("jags" %in% input$plot_layers) {
       jags_list <- list()
       for (i in seq_along(sites)) {
-        site_A <- if(i == 1) 0 else j_fit$sims.list$A[, i]
+        site_A <- if(i == 1) 0 else j_fit$sims.list$A[, i - 1]
         for (t in seq_along(all_years)) {
           pred <- exp(j_fit$sims.list$X[, t] + site_A)
           jags_list[[length(jags_list)+1]] <- data.frame(
@@ -428,7 +554,6 @@ server <- function(input, output, session) {
       theme(strip.text = element_text(face = "bold", size = 12), title = element_text(face = "bold"), legend.position = "bottom")
   })
 
-  # --- TAB 2 COEFFICIENTS TABLE ---
   output$table_u <- renderTable({
     req(vault$res, vault$marss)
     sites <- sort(unique(vault$abund$Site))
@@ -462,10 +587,21 @@ server <- function(input, output, session) {
     do.call(rbind, rows)
   }, sanitize.text.function = function(x) x, align = "llrr")
 
-  # --- TAB 2 VARIANCE COMPONENT TABLE WITH VAL-SPECIFIC LAYER TOOLTIPS ---
+  # FULLY REPAIRED TABLE_VAR FOR SINGLE BEACH
   output$table_var <- renderTable({
     req(vault$res, vault$marss)
     sites <- sort(unique(vault$abund$Site))
+
+    # --- SINGLE BEACH SAFEGUARD GUARDRAIL ---
+    if (length(sites) <= 1) {
+      return(data.frame(
+        Framework = "Diagnostic Offline",
+        `Monitored Sub-Site` = sites[1],
+        `Environmental Fluctuations (Q)` = "<span class='badge bg-secondary'>Requires >1 Beach</span>",
+        `Monitoring & Survey Noise (R)` = "<span class='badge bg-secondary'>Requires >1 Beach</span>",
+        check.names = FALSE
+      ))
+    }
 
     jags_q <- mean(vault$res$fit$sims.list$Q)
     jags_r <- colMeans(vault$res$fit$sims.list$R)
@@ -476,22 +612,20 @@ server <- function(input, output, session) {
     marss_i_q <- diag(stats::coef(vault$marss$indep, type = "matrix")$Q)
     marss_i_r <- diag(stats::coef(vault$marss$indep, type = "matrix")$R)
 
-    # Q Badge Generator (Natural Environmental Fluctuations)
     get_q_badge <- function(q_val) {
       if (q_val < 0.05) {
         b_class <- "bg-success text-white"; label <- "Low Fluctuation"
-        tip <- "True population numbers are highly stable, solid, and predictable from year to year."
+        tip <- "Low Fluctuation: True nesting population size is highly stable and predictable from year to year."
       } else if (q_val < 0.20) {
         b_class <- "bg-warning text-dark"; label <- "Moderate Fluctuations"
-        tip <- "Standard fluctuations driven by typical marine cycles like changing regional currents or regional food availability."
+        tip <- "Moderate Fluctuations: Standard, expected environmental shifts year-to-year driven by typical marine cycles like changing regional currents or regional food availability."
       } else {
         b_class <- "bg-danger text-white"; label <- "High Volatility"
-        tip <- "High Volatility: Intense ecological shocks or acute environmental anomalies are throwing off population stability."
+        tip <- "High Volatility: Intense, unpredictable ecological shocks or local nesting disruptions are rocking this beach's population stability."
       }
       sprintf("<span class='badge %s' data-bs-toggle='tooltip' data-bs-placement='top' data-bs-title='%s' style='font-size: 0.85rem; padding: 0.35em 0.5em; min-width: 170px; cursor: pointer;'>%.4f (%s)</span>", b_class, tip, q_val, label)
     }
 
-    # R Badge Generator (Monitoring & Survey Noise)
     get_r_badge <- function(r_val, model_type, jags_val, indep_val) {
       if (r_val < 0.05) {
         b_class <- "bg-success text-white"; label <- "High Precision"
@@ -507,7 +641,7 @@ server <- function(input, output, session) {
         if (jags_val >= 0.12 && indep_val < 0.05) {
           tip <- "SHARED PARALLEL ASSUMPTION MISMATCH: This beach is monitored well in the field. However, it looks noisy here because this regional model tries to force it onto a uniform average trend line that its real biology breaks away from."
         } else if (jags_val < 0.05 && indep_val >= 0.12) {
-          tip := "REGIONAL SECURITY SAFETY NET: This beach looks precise here only because it is borrowing data strength from well-surveyed neighboring beaches to smooth over its data gaps behind a group average."
+          tip <- "REGIONAL SECURITY SAFETY NET: This beach looks precise here only because it is borrowing data strength from well-surveyed neighboring beaches to smooth over its data gaps behind a group average."
         } else {
           if (r_val < 0.05) tip <- "Beach monitored well: Field data points tightly track the shared regional baseline trend line."
           if (r_val >= 0.05 && r_val < 0.20) tip <- "Standard monitoring noise: Acceptable fieldwork variations expected under a shared regional model."
@@ -564,11 +698,101 @@ server <- function(input, output, session) {
     do.call(rbind, rows)
   }, sanitize.text.function = function(x) x, align = "llrr")
 
-  # 9. Raw Data Preview Table
-  output$data_preview <- renderTable({
-    req(vault$abund)
-    vault$abund
+  # --- TAB 4: REACTIVE STOCHASTIC ENGINE FOR PVA SIMULATIONS ---
+  pva_data <- reactive({
+    req(vault$marss, vault$abund)
+
+    sites <- sort(unique(vault$abund$Site))
+    n_sites <- length(sites)
+    horizon <- input$pva_years
+    n_sims <- input$pva_sims
+
+    mi_fit <- vault$marss$indep
+    mi_U <- stats::coef(mi_fit, type = "matrix")$U[, 1]
+    mi_Q <- diag(stats::coef(mi_fit, type = "matrix")$Q)
+
+    all_years <- sort(unique(vault$abund$Year))
+    final_year <- max(all_years)
+    proj_years <- (final_year + 1):(final_year + horizon)
+
+    plot_list <- list()
+    thresh_list <- list()
+
+    for (i in 1:n_sites) {
+      site_name <- sites[i]
+      u_val <- mi_U[i]
+      q_val <- mi_Q[i]
+
+      start_x <- mi_fit$states[i, ncol(mi_fit$states)]
+      start_n <- exp(start_x)
+
+      sim_matrix <- matrix(NA, nrow = n_sims, ncol = horizon)
+
+      for (s in 1:n_sims) {
+        current_x <- start_x
+        for (t in 1:horizon) {
+          shock <- rnorm(1, mean = 0, sd = sqrt(q_val))
+          current_x <- current_x + u_val + shock
+          sim_matrix[s, t] <- exp(current_x)
+        }
+      }
+
+      medians <- apply(sim_matrix, 2, median)
+      lowers <- apply(sim_matrix, 2, function(x) quantile(x, 0.025))
+      uppers <- apply(sim_matrix, 2, function(x) quantile(x, 0.975))
+
+      plot_list[[i]] <- data.frame(
+        Year = proj_years, Site = site_name,
+        Median = medians, Lower = lowers, Upper = uppers
+      )
+
+      final_counts <- sim_matrix[, horizon]
+      prob_50 <- mean(final_counts < (start_n * 0.50)) * 100
+      prob_25 <- mean(final_counts < (start_n * 0.25)) * 100
+      prob_125 <- mean(final_counts < (start_n * 0.125)) * 100
+
+      thresh_list[[i]] <- data.frame(
+        `Nesting Sub-Site` = site_name,
+        `Final Index Year Value` = round(start_n, 1),
+        `Risk of dropping < 50%` = sprintf("%.1f%%", prob_50),
+        `Risk of dropping < 25%` = sprintf("%.1f%%", prob_25),
+        `Risk of dropping < 12.5%` = sprintf("%.1f%%", prob_125),
+        check.names = FALSE
+      )
+    }
+
+    list(
+      plot_df = do.call(rbind, plot_list),
+      table_df = do.call(rbind, thresh_list)
+    )
   })
+
+  output$pva_plot <- renderPlot({
+    req(pva_data(), vault$abund)
+
+    p_dat <- pva_data()
+    proj_df <- p_dat$plot_df
+    hist_df <- vault$abund %>% filter(!is.na(Annual_Nesters))
+
+    ggplot() +
+      geom_ribbon(data = proj_df, aes(x = Year, ymin = Lower, ymax = Upper), fill = "purple4", alpha = 0.12) +
+      geom_line(data = proj_df, aes(x = Year, y = Median), color = "purple4", linewidth = 1.2, linetype = "dashed") +
+      geom_point(data = hist_df, aes(x = Year, y = Annual_Nesters), color = "black", size = 2) +
+      facet_wrap(~Site, scales = "free_y") +
+      labs(
+        title = paste("Stochastic Population Viability Projections (Horizon:", input$pva_years, "Years)"),
+        subtitle = "Historical indexes plotted against the unconstrained forecast median (95% Shaded Prediction Ribbon)",
+        x = "Season (Year)", y = "Annual Nesters"
+      ) +
+      theme_bw() +
+      theme(strip.text = element_text(face = "bold", size = 11), title = element_text(face = "bold"))
+  })
+
+  output$table_pva_thresholds <- renderTable({
+    req(pva_data())
+    pva_data()$table_df
+  }, align = "lrrrr")
+
 }
 
 shinyApp(ui, server)
