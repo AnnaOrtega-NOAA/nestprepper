@@ -15,6 +15,7 @@ Imports:
     tidyr,
     magrittr,
     shiny,
+    bscions,
     zoo
 Suggests: 
     knitr,
