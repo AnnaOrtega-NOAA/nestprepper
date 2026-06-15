@@ -107,41 +107,32 @@ aggregate_monthly_to_annual <- function(df, quiet = FALSE) {
     }
   }"
 
-  # 5. Execute
+  # 5. Execute - NOW SAVING MONTHLY IMPUTATIONS (tmp2)
   jm <- jagsUI::jags(
     data = jags_data,
-    parameters.to.save = c("N"),
+    parameters.to.save = c("N", "tmp2"),
     model.file = textConnection(model_string),
     n.chains = 5, n.iter = 100000, n.burnin = 50000, n.thin = 5, parallel = FALSE
   )
 
-  N_sims <- jm$q50$N
-  if (is.null(dim(N_sims))) {
-    N_sims <- matrix(N_sims, ncol = 1)
-  }
+  # Extract the 3D array of imputed monthly counts [Year, Month, Site]
+  tmp2_sims <- jm$q50$tmp2
 
-  imputed_results <- list()
-  for (i in 1:n_timeseries) {
-    imputed_results[[i]] <- data.frame(
-      Year = all_years,
-      Site = sites[i],
-      # TOMO OUTPUTS LOG(N), WE REVERSE IT FOR THE APP TO USE AS RAW COUNTS
-      Count = exp(as.vector(N_sims[, i]))
-    )
-  }
-
-  res_df <- do.call(rbind, imputed_results)
+  # Format into a clean dataframe
+  dimnames(tmp2_sims) <- list(all_years, 1:12, sites)
+  res_monthly <- as.data.frame(as.table(tmp2_sims))
+  colnames(res_monthly) <- c("Year", "Month", "Site", "Count")
+  res_monthly$Year <- as.numeric(as.character(res_monthly$Year))
+  res_monthly$Month <- as.numeric(as.character(res_monthly$Month))
+  res_monthly$Site <- as.character(res_monthly$Site)
 
   # 6. CRITICAL QA/QC: Trim Pre-Monitoring Hallucinations
-  # Find the first valid year of actual monitoring for each beach
   first_valid <- df %>%
     dplyr::filter(!is.na(Count) & Count > 0) %>%
     dplyr::group_by(Site) %>%
     dplyr::summarise(first_year = min(Year, na.rm=TRUE), .groups = "drop")
 
-  # Convert any back-casted JAGS data prior to the beach's first real survey to NA,
-  # but PRESERVE any internal gaps (like Wermon 2013-2015) for the trend model.
-  res_df <- res_df %>%
+  res_monthly <- res_monthly %>%
     dplyr::left_join(first_valid, by = "Site") %>%
     dplyr::mutate(
       Count = ifelse(Year < first_year, NA_real_, Count)
@@ -149,5 +140,5 @@ aggregate_monthly_to_annual <- function(df, quiet = FALSE) {
     dplyr::select(-first_year)
 
   if (!quiet) message("--- Imputation Complete ---")
-  return(res_df)
+  return(res_monthly) # Now returning mathematically complete monthly data
 }

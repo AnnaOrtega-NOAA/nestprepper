@@ -6,3 +6,26 @@ inst/doc
 .DS_Store
 .quarto
 .positai
+local_analysis/
+
+# Ignore local heavy analysis outputs
+Ecological_Applications_Master_Outputs/
+Methods_Paper_Mock_Case_Study_Output/
+
+# Ignore personal scratchpads and local scripts
+local_analysis/
+methods_sensitivity_master_*
+methods_sensitivity_SuppFigCombo
+model_norm_norm_Four_imputation
+singleUQ
+validation_2020
+workflow
+
+# Ignore personal scratchpads and local scripts
+local_analysis/
+methods_sensitivity_master_*
+methods_sensitivity_SuppFigCombo*
+model_norm_norm_Four_imputation*
+singleUQ*
+validation_2020*
+workflow*
